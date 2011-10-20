@@ -4,7 +4,7 @@
 #  Author:	(C)2011 V.Panfilov v.v.panfilov@gmail.com
 #  Planform:	Development on Ubuntu Linux 10.04
 #  		should work on others too
-#  Revision:	$Id $
+#  Revision:	$Id$
 #
 
 use Getopt::Long;
