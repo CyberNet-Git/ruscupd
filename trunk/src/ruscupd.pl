@@ -4,6 +4,8 @@
 #  Author:	(C)2011 V.Panfilov v.v.panfilov@gmail.com
 #  Planform:	Development on Ubuntu Linux 10.04
 #  		should work on others too
+#  Revision:	$REV$
+#
 
 use Getopt::Long;
 #use IO::Socket;
@@ -30,6 +32,7 @@ my $ruscdir;
 # locate dir for ruscenery and create it if does not exist
 #
 @dirs = search_xpdir('/opt','/usr/local/');
+print scalar @dirs," directories found\n";
 
 $n=0;
 $a=0;
@@ -40,16 +43,18 @@ print "\t",$n++," $_\n" foreach @dirs;
 print "\t",$n," Other\n\n";
 
 do {
- if ($n>1) {
+ if ($n>0) {
    print "Choose your X-plane directory: ";
    $a = <>;
  }
+ chomp $a;
  if ($a==0 or $a<scalar @dirs){
    $xpdir = $dirs[$a];
  }
- if ($a == scalar @dirs) {
+ if ($xpdir eq '') {
    print "Enter directory where X-plane is installed: ";
    $xpdir = <>;
+   chomp $xpdir;
  }
 }unless ($xpdir);
 
@@ -167,15 +172,16 @@ sub mkdirhier
 {
     $dir = shift;
 print "mkdirhier: $dir\n";
-    @dir = split '/', $dir;
+    @dir = split /\//, $dir;
+print scalar @dir,"\n";
     $dd = '';
-    foreach $d (@dir){
-	$dd .= "/$d";
+    foreach $d ( @dir ) {
+        $dd .= "$d/";
 	unless (-d $dd){
-		print "Create $dd\n";
+		print "Create '$dd'\n";
 		mkdir "$dd";
-	}
-    }
+	} 
+    };
 }
 
 sub search_xpdir
@@ -183,6 +189,7 @@ sub search_xpdir
    my (@dir, %d);
    unshift @_,"./";
    unshift @_,"$ENV{HOME}" if $ENV{HOME};
+   print "Searching in ",join(':',@_),"\n";
    while( my $rootdir = shift)
    {
      $rootdir .= '/' unless $rootdir=~/\/$/;
@@ -191,9 +198,9 @@ sub search_xpdir
      closedir $dh;
      map { $d{"${rootdir}$_"}=undef if $_ =~ /x[- ]?plane/i} @dir;
    }
-   foreach $k (keys %d){
-	delete $d{$k} unless -d "$k/Custom Scenery/";
-   }
+#   foreach $k (keys %d){
+#	delete $d{$k} unless -d "$k/Custom Scenery/";
+#   }
    return sort keys %d;
 }
 
