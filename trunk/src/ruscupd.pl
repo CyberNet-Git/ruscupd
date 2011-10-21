@@ -11,8 +11,10 @@ use Getopt::Long;
 #use IO::Socket;
 use LWP::UserAgent;
 
-my $myrev = '$Rev $';
-$myrev =~ s/\$Re.* (.*)\$//;
+my $myrev;
+($myrev='$Rev$')=~s/.*:\s(\d+).*/$1/;
+#($myrev='$Rev$')=~s/.*:\s(\d+).*/$1/;
+
 my $hi = "ruscupd.pl - RuScenery updater. Revision $myrev";
 print "\n$hi\n",'-'x length($hi),"\n";
 
@@ -230,4 +232,7 @@ sub download_file
     close FO;
     return $resp->content;
 }
+
+__DATA__
+$Rev$
 
