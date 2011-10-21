@@ -9,6 +9,9 @@
 
 use Getopt::Long;
 use LWP::UserAgent;
+use POSIX;
+
+local $|=1; #autoflush stdout 
 
 my $myrev;
 ($myrev='$Rev$')=~s/.*:\s(\d+).*/$1/;
@@ -27,7 +30,8 @@ my $res = GetOptions(
     "update|u" => \$update,
     "conf|c=s" => \$conf,
     "reset|r" => \$reset_config,
-    "help|h"   => \$help
+    "help|h"   => \$help,
+    "verbose|v" => \$verbose
 );
 
 
@@ -75,24 +79,28 @@ print "X-Plane directory: $xpdir\n";
 print "RuScenery directory: $ruscdir\n\n";
 
 my $ua = LWP::UserAgent->new;
-$ua->agent("RuScUpd/$ruscrev ");
+$ua->agent("RuScUpd/$ruscrev Linux");
 $ua->env_proxy;
 
 # Load and parse commands from 'current version file'
 # download http://www.x-plane.su/ruscenery/ruscenery.ver
-my $url = "http://www.x-plane.su/ruscenery/";
+my $updurl = "http://www.x-plane.su/ruscenery/";
 my $verfile = "ruscenery.ver";
 
-$f = download_file( $url, $verfile );
+$f = download_file( $updurl, $verfile );
 
 @lines = split /\r\n/, $f;
-print "Verfile is ",scalar @lines," lines\n";
+print "Verfile is ",scalar @lines," lines\n" if $verbose;
 @commands = grep /^;/,@lines;
 
 foreach $cmd (@commands){
-   print $cmd,"\n";
-   $updurl = $1 if $cmd =~ /^;u (.*)/ ;
-   $dwnurl = $1 if $cmd =~ /^;d (.*)/ ;
+   print $cmd,"\n" if $verbose;
+   $updurl = $1 if $cmd =~ /^;u (.*)/i ;
+   $dwnurl = $1 if $cmd =~ /^;d (.*)/i ;
+   $vfver  = $1 if $cmd =~ /^;v (.*)/i ;
+   $topmsg = $1 if $cmd =~ /^;t (.*)/i ;
+   $botmsg = $1 if $cmd =~ /^;b (.*)/i ;
+   $stsmsg = $1 if $cmd =~ /^;s (.*)/i ;
 }
 $updurl = "http://www.x-plane.su/ruscenery/" if $updurl =~ /^\s*$/;
 $dwnurl = "http://www.x-plane.su/ruscenery/update/" if $dwnurl =~ /^\s*$/;
@@ -105,17 +113,39 @@ if ($reset_config){
 # Store settings in config file
 save_config($conf,\@conf);
 
-#download_file ("http://www.x-plane.su/ruscenery/update/","polygons/lightspot1.png");
+print "Updating...\n";
+print "$topmsg\n" if $topmsg;
+$n=0;
+foreach (@lines)
+{
+   next if /^[;#]/;
+   next if /^$/;
+   next unless /^(\S+)\s+(\d+)\s+(\S+)\s+(\S+)\s*$/;
+   $rsize = $2;
+   $rdate = $3;
+   $rtime = $4;
+   ($rfile = $1) =~ s/\\/\//g;
+   $rdate =~ /(\d+)\.(\d+)\.(\d+)/; ($d,$m,$y)=($1,$2-1,$3-1900);
+   $rtime =~ /(\d+)\:(\d+)\:(\d+)/; ($H,$M,$S)=($1,$2,$3);
+   $rtime = POSIX::mktime($S, $M, $H, $d, $m, $y);
+   if ( -f "$ruscdir$rfile" ) {
+      @stat = stat _;
+      ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
+      $atime,$mtime,$ctime,$blksize,$blocks) = @stat;
+      if ($size != $rsize) {
+	 download_file ($dwnurl,$rfile);
+         $n++; 
+      }
+   } else {
+	 download_file ($dwnurl,$rfile);
+         $n++; 
+   };
+   utime $rtime, $rtime, "$ruscdir$rfile";
+#   last if $n>10; # just 10 files for now
+}
+print "$botmsg\n" if $topmsg;
 
-# parse commands
-#
-# ;u command
-# ;d command
-# ;v command
-# ;t command
-# ;s command
-# ;b command
-#
+#download_file ("http://www.x-plane.su/ruscenery/update/","polygons/lightspot1.png");
 
 
 # File list analisis
@@ -290,7 +320,7 @@ sub mkdirhier
     foreach $d ( @dir ) {
         $dd .= "$d/";
 	unless (-d $dd){
-		print "Create '$dd'\n";
+		print "Create '$dd'\n" if $verbose;
 		mkdir "$dd";
 	} 
     };
@@ -326,10 +356,9 @@ sub download_file
     my ($url,$file)=@_;
     print "Downloading ${url}${file}...";
     $resp = $ua->get($url.$file);
-    die $resp->status_line, "\n"
-      unless $resp->is_success;
-
+    die $resp->status_line, "\n" unless $resp->is_success;
     print "done\n";
+
     # save file
     ($localdir = "$ruscdir/$file") =~ s/(.*\/)(.*)/$1/;
     mkdirhier($localdir);
