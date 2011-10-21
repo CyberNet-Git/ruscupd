@@ -5,72 +5,72 @@
 #  Planform:	Development on Ubuntu Linux 10.04
 #  		should work on others too
 #  Revision:	$Id$
-#  $Rev$
+#  
 
 use Getopt::Long;
-#use IO::Socket;
 use LWP::UserAgent;
 
 my $myrev;
 ($myrev='$Rev$')=~s/.*:\s(\d+).*/$1/;
-#($myrev='$Rev$')=~s/.*:\s(\d+).*/$1/;
 
 my $hi = "ruscupd.pl - RuScenery updater. Revision $myrev";
 print "\n$hi\n",'-'x length($hi),"\n";
 
-my $res = GetOptions(
-    "update|u" => \$update,
-    "conf|c=s" => \$conf,
-    "help|h"   => \$help
-);
-
+# Globals
 my $conf;
+my @conf;
 my $xpdir;
 my $ruscdir;
 
-# set variables
+my @argv = @ARGV;
+my $res = GetOptions(
+    "update|u" => \$update,
+    "conf|c=s" => \$conf,
+    "reset|r" => \$reset_config,
+    "help|h"   => \$help
+);
+
+
 # our local config file
-($conf = $0)  =~ s/(.*)\/.*/$1\/ruscupd.conf/ if $conf =~ /^(\.\/)?$/; # locate our config
+unless( $conf ){
+ $defconf = "Using existing ";
+  -f "/usr/local/etc/ruscupd.conf" and $conf = "/usr/local/etc/ruscupd.conf";
+  -f "/etc/ruscupd.conf" and $conf = "/etc/ruscupd.conf";
+  -f "$ENV{HOME}/ruscupd.conf" and $conf = "$ENV{HOME}/ruscupd.conf";
+  -f "./ruscupd.conf" and $conf = "./ruscupd.conf";
+  unless ( $conf ){
+    ($conf = $0)  =~ s/(.*)\/.*/$1\/ruscupd.conf/ if $conf =~ /^(\.\/)?$/; # locate our config
+    $defconf = "Config file missing. Creating ";
+  } 
+}else {
+  $defconf = -f $conf? "Using" : "Will create";
+  $defconf .= " specified ";
+}
+print "${defconf} $conf as config file\n";
 
-# 1-st start.
+unless( $reset_config ) {
+  if ( load_config($conf, \@conf) ){
+      print "Config file successfully loaded\n";
+      parse_config(\@conf);
+  } else {
+    # 1-st start. May be...
+    print "Fail to load config $conf\n";
+    die if -f $conf;
+    print "Creating new one.\n";
+    $reset_config = 1; # create new config
+  }
+}
+
 # Locate X plane directory
-# Let user deside
-# Store directory to config file
+locate_xplane() unless $xpdir;
+
 # locate dir for ruscenery and create it if does not exist
-#
-my @dirs = search_xpdir('/opt','/usr/local/');
-print scalar @dirs," directories found\n";
-
-my $n=0;
-my $a=0;
-
-print "X-plane directories:\n*";
-print "\t",$n++," $_\n" foreach @dirs;
-print "\t",$n," Other\n\n* - default\n\n";
-
-do {
- if ($n>0) {
-   print "Choose your X-plane directory: ";
-   $a = <>;
- }
- chomp $a;
- if ($a==0 or $a<scalar @dirs){
-   $xpdir = $dirs[$a];
- }
- if ($xpdir eq '') {
-   print "Specify directory where X-plane is installed: ";
-   $xpdir = <>;
-   chomp $xpdir;
- }
-}unless ($xpdir);
-
-print "Using X-plane directory '$xpdir'\n";
-
 $ruscdir = $xpdir . "/Custom Scenery/ruscenery/";
+unless (-d $ruscdir) { 
+   print "Creating directory $ruscdir\n"; 
+   mkdirhier("$ruscdir"); 
+}
 
-unless (-d $ruscdir) { print "Creating directory $ruscdir\n"; mkdirhier("$ruscdir"); }
-
-print "Config file: $conf\n";
 print "X-Plane directory: $xpdir\n";
 print "RuScenery directory: $ruscdir\n\n";
 
@@ -83,7 +83,7 @@ $ua->env_proxy;
 my $url = "http://www.x-plane.su/ruscenery/";
 my $verfile = "ruscenery.ver";
 
-$f = download_file( $url, $verfile);
+$f = download_file( $url, $verfile );
 
 @lines = split /\r\n/, $f;
 print "Verfile is ",scalar @lines," lines\n";
@@ -91,8 +91,20 @@ print "Verfile is ",scalar @lines," lines\n";
 
 foreach $cmd (@commands){
    print $cmd,"\n";
-   $cmd =~ /^;u/ &&  print "UUUU\n"; 
+   $updurl = $1 if $cmd =~ /^;u (.*)/ ;
+   $dwnurl = $1 if $cmd =~ /^;d (.*)/ ;
 }
+$updurl = "http://www.x-plane.su/ruscenery/" if $updurl =~ /^\s*$/;
+$dwnurl = "http://www.x-plane.su/ruscenery/update/" if $dwnurl =~ /^\s*$/;
+
+if ($reset_config){
+   create_config(\@conf);
+print "create\n",join"\n",@conf;
+} else {
+   update_config(\@conf)
+}
+# Store settings in config file
+save_config($conf,\@conf);
 
 #download_file ("http://www.x-plane.su/ruscenery/update/","polygons/lightspot1.png");
 
@@ -174,12 +186,108 @@ foreach $cmd (@commands){
 # tech\zil-mil.obj 83812 03.07.2009 01:00:08
 # 
 
+sub locate_xplane
+{
+    my @dirs = search_xpdir('/opt','/usr/local/');
+    my ($n,$a)=(0,0);
+    
+    # Let user deside
+    print "X-plane directories:\n*";
+    print "\t",$n++," $_\n" foreach @dirs;
+    print "\t",$n," Other\n\n* - default\n\n";
+    
+    do {
+     if ($n>0) {
+       print "Choose your X-plane directory: ";
+       $a = <>;
+     }
+     chomp $a;
+     if ($a==0 or $a<scalar @dirs){
+       $xpdir = $dirs[$a];
+     }
+     if ($xpdir eq '') {
+       print "Specify directory where X-plane is installed: ";
+       $xpdir = <>;
+       chomp $xpdir;
+     }
+    } unless ($xpdir);
+}
+
+sub load_config
+{
+   my $conf = shift;
+   my $cptr = shift;
+   my $cf;
+   open $cf, "<$conf" or return undef;
+   @$cptr = <$cf>;
+   close $cf;
+   return $cptr;
+}
+
+sub save_config
+{
+   my $conf = shift;
+   my $cptr = shift;
+   my $cf;
+   open $cf, ">$conf" or die "Cannot write config file $conf.\n $! \n $^E\n";
+   foreach (@$cptr) {
+     print $cf "$_\n";
+   }
+   close $cf;
+   return 1;
+}
+
+sub create_config
+{
+   my $conf = shift;
+   my $cptr = shift;
+   @$cptr = ("# RuScenery updater configuration file",
+   "# $localtime",
+   "#",
+   "XplaneDir = $xpdir",
+   "UpdateURL = $updurl");
+}
+
+sub parse_config
+{
+   print "Parsing config...";
+   my $cptr = shift;
+   foreach (@$cptr) {
+       chomp;
+       /^#/ && next;
+       /^\s*$/ && next;
+       /^XplaneDir\s*=\s*(\S+)\s*/ && do {  $xpdir = $1; print "XPDIR:$xpdir \n"; next;  };
+       /^UpdateURL\s*=\s*(\S+)\s*/ && do {  $updurl = $1; next; };
+       print "file format invalid\n" ;
+       print "To reset config file run $0 -r ".join(" ",@argv)."\n" ;
+#       print "WARNING!!! All current data in $conf whill be deleted\n" ;
+       die '';
+     }
+   print "done\n";
+}
+
+sub update_config
+{
+   my $cptr = shift;
+   foreach (@$cptr) {
+       /^#/ && next;
+       /^\s*$/ && next;
+       /^XplaneDir\s*=\s*(\S+)\s*/ && do {  s/=.*$/= $xpdir/; $xpdir_f =1; next;  };
+       /^UpdateURL\s*=\s*(\S+)\s*/ && do {  s/=.*$/= $updurl/; $updurl_f=1; next; };
+       print "file format invalid\n" ;
+       print "To reset config file run $0 -r ".join(" ",@argv)."\n" ;
+#       print "WARNING!!! All current data in $conf whill be deleted\n" ;
+       die '';
+     }
+   push @$cptr, "XplaneDir = $xpdir" unless $xpdir_f;
+   push @$cptr, "UpdateURL = $updurl" unless $updurl_f;
+   print "done\n";
+}
+
 sub mkdirhier
 {
     $dir = shift;
-print "mkdirhier: $dir\n";
     @dir = split /\//, $dir;
-print scalar @dir,"\n";
     $dd = '';
     foreach $d ( @dir ) {
         $dd .= "$d/";
