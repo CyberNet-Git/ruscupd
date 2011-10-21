@@ -11,6 +11,11 @@ use Getopt::Long;
 #use IO::Socket;
 use LWP::UserAgent;
 
+my $myrev = '$Rev $';
+$myrev =~ s/\$Re.* (.*)\$//;
+my $hi = "ruscupd.pl - RuScenery updater. Revision $myrev";
+print "\n$hi\n",'-'x length($hi),"\n";
+
 my $res = GetOptions(
     "update|u" => \$update,
     "conf|c=s" => \$conf,
@@ -31,16 +36,15 @@ my $ruscdir;
 # Store directory to config file
 # locate dir for ruscenery and create it if does not exist
 #
-@dirs = search_xpdir('/opt','/usr/local/');
+my @dirs = search_xpdir('/opt','/usr/local/');
 print scalar @dirs," directories found\n";
 
-$n=0;
-$a=0;
+my $n=0;
+my $a=0;
 
-print "ruscupd.pl - RuScenery updater\n\n";
-print "X-plane directories:\n";
+print "X-plane directories:\n*";
 print "\t",$n++," $_\n" foreach @dirs;
-print "\t",$n," Other\n\n";
+print "\t",$n," Other\n\n* - default\n\n";
 
 do {
  if ($n>0) {
@@ -52,7 +56,7 @@ do {
    $xpdir = $dirs[$a];
  }
  if ($xpdir eq '') {
-   print "Enter directory where X-plane is installed: ";
+   print "Specify directory where X-plane is installed: ";
    $xpdir = <>;
    chomp $xpdir;
  }
@@ -69,7 +73,7 @@ print "X-Plane directory: $xpdir\n";
 print "RuScenery directory: $ruscdir\n\n";
 
 my $ua = LWP::UserAgent->new;
-$ua->agent("RuScUpd/0.0.0 ");
+$ua->agent("RuScUpd/$ruscrev ");
 $ua->env_proxy;
 
 # Load and parse commands from 'current version file'
@@ -187,20 +191,25 @@ print scalar @dir,"\n";
 sub search_xpdir
 {
    my (@dir, %d);
-   unshift @_,"./";
+   unshift @_,'./';
    unshift @_,"$ENV{HOME}" if $ENV{HOME};
-   print "Searching in ",join(':',@_),"\n";
+   print "Searching for X-plane in ",join(':',@_),"\n";
    while( my $rootdir = shift)
    {
-     $rootdir .= '/' unless $rootdir=~/\/$/;
-     opendir $dh, $rootdir;
+     opendir $dh, $rootdir if $rootdir !~ /^$/;
      @dir = readdir $dh;
      closedir $dh;
-     map { $d{"${rootdir}$_"}=undef if $_ =~ /x[- ]?plane/i} @dir;
+     foreach (@dir) { 
+        if (/x[- ]?plane?/i) {
+	   $_=-d "$rootdir/$_"?"$rootdir/$_":$rootdir;
+	   s/\/\//\//g;
+	   $d{$_}=undef;
+	}
+     };
    }
-#   foreach $k (keys %d){
-#	delete $d{$k} unless -d "$k/Custom Scenery/";
-#   }
+   foreach $k (keys %d){
+	delete $d{$k} unless -d "$k/Custom Scenery/";
+   } 
    return sort keys %d;
 }
 
@@ -221,3 +230,4 @@ sub download_file
     close FO;
     return $resp->content;
 }
+
