@@ -5,7 +5,7 @@
 #  Planform:	Development on Ubuntu Linux 10.04
 #  		should work on others too
 #  Revision:	$Id$
-#
+#  $Rev$
 
 use Getopt::Long;
 #use IO::Socket;
