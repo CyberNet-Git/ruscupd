@@ -99,7 +99,6 @@ $dwnurl = "http://www.x-plane.su/ruscenery/update/" if $dwnurl =~ /^\s*$/;
 
 if ($reset_config){
    create_config(\@conf);
-print "create\n",join"\n",@conf;
 } else {
    update_config(\@conf)
 }
@@ -239,10 +238,9 @@ sub save_config
 
 sub create_config
 {
-   my $conf = shift;
    my $cptr = shift;
    @$cptr = ("# RuScenery updater configuration file",
-   "# $localtime",
+   "# " . $localtime ,
    "#",
    "XplaneDir = $xpdir",
    "UpdateURL = $updurl");
