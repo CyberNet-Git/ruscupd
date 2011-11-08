@@ -1,11 +1,23 @@
 #!/usr/bin/perl
 #
 #  Subject:	RuScenery updater for X-plane
-#  Author:	(C)2011 V.Panfilov v.v.panfilov@gmail.com
+#  Author:	(C)2011 Vladimir V. Panfilov v.v.panfilov@gmail.com
 #  Planform:	Development on Ubuntu Linux 10.04
 #  		should work on others too
 #  Revision:	$Id$
-#  
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>. 
 
 use Getopt::Long;
 use LWP::UserAgent;
@@ -16,8 +28,9 @@ local $|=1; #autoflush stdout
 my $myrev;
 ($myrev='$Rev$')=~s/.*:\s(\d+).*/$1/;
 
+my $progname = "ruscupd";
 my $hi = "ruscupd.pl - RuScenery updater. Revision $myrev";
-print "\n$hi\n",'-'x length($hi),"\n";
+print "$hi\n",'-'x length($hi),"\n";
 
 # Globals
 my $conf;
@@ -34,6 +47,20 @@ my $res = GetOptions(
     "verbose|v" => \$verbose
 );
 
+if ($help) {
+  print "Usage: $0 [OPTIONS] 
+
+Options:
+   -c, --conf=FILE      Use FILE as your current session config file.
+   -r, --reset          Reset $progname configuration file (creates a new one)
+   -v, --verbose        Be verbose (more output text messages)
+   -h, --help           Help - just this screen.
+
+This program is available under the GNU General Public License. 
+See yours at http://www.gnu.org/licenses/
+";
+  exit;
+}
 
 # our local config file
 unless( $conf ){
@@ -143,77 +170,8 @@ foreach (@lines)
    utime $rtime, $rtime, "$ruscdir$rfile";
 #   last if $n>10; # just 10 files for now
 }
-print "$botmsg\n" if $topmsg;
+print "$botmsg\n" if $botmsg;
 
-#download_file ("http://www.x-plane.su/ruscenery/update/","polygons/lightspot1.png");
-
-
-# File list analisis
-# read file from list
-# check for file in local directory
-# download if it does not exist
-# file exists: check for size, if does not mutch - download it
-# set date time for file from downloaded list
-#
-
-#
-# ruscenery.ver
-#
-# string delimiter: 0x0d0x0a
-# # - comment
-# ;x - command x
-# Url  - 
-# ;u http://www.x-plane.su/ruscenery/
-# default http://www.x-plane.su/ruscenery/
-#
-# Download url
-# ;d http://www.x-plane.su/ruscenery/update/
-# default http://www.x-plane.su/ruscenery/update/
-#
-# Version
-# ;v 1.0.1
-#
-# Status string
-# ;s (;S)
-# Message string in cp1251 encoding
-#
-# Top message
-# ;t (;T)
-# Top message string in cp1251
-#
-# Bottom message
-# ;b (;B)
-# Bottom message string in cp1251
-#
-#
-# Sample control file:
-# #
-# # Файл описания версии библиотеки RuScenery
-# # Версия библиотеки 1.0.8
-# # сборка от 03.07.2009 19:55:03
-# #
-# ;u http://www.x-plane.su/ruscenery/
-# ;d http://www.x-plane.su/ruscenery/update/
-# ;v 1.0.1
-# ;s Бета версия - работает в тестовом режиме
-# #
-# copyrights.txt 9936 03.07.2009 01:00:08
-# dirinfo.txt 4383 03.07.2009 01:00:08
-# install.txt 187 03.07.2009 01:00:08
-# library.txt 37558 03.07.2009 01:00:08
-# aircrafts\a-50.obj 485812 03.07.2009 01:00:08
-# aircrafts\a-50.png 1422830 03.07.2009 01:00:08
-# aircrafts\a-50_lit.png 286949 03.07.2009 01:00:08
-# aircrafts\an-10.obj 241334 03.07.2009 01:00:08
-# aircrafts\an-10.png 1028434 03.07.2009 01:00:08
-# aircrafts\an-10_lit.png 451958 03.07.2009 01:00:08
-#
-# ...
-#
-# tech\uaz.obj 77988 03.07.2009 01:00:08
-# tech\ural-mil.obj 119712 03.07.2009 01:00:08
-# tech\zil-mil.obj 83812 03.07.2009 01:00:08
-# 
 
 sub locate_xplane
 {
@@ -284,7 +242,7 @@ sub parse_config
        chomp;
        /^#/ && next;
        /^\s*$/ && next;
-       /^XplaneDir\s*=\s*(\S+)\s*/ && do {  $xpdir = $1; print "XPDIR:$xpdir \n"; next;  };
+       /^XplaneDir\s*=\s*(\S+)\s*/ && do {  $xpdir = $1;  next;  };
        /^UpdateURL\s*=\s*(\S+)\s*/ && do {  $updurl = $1; next; };
        print "file format invalid\n" ;
        print "To reset config file run $0 -r ".join(" ",@argv)."\n" ;
