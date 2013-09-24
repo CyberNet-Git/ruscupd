@@ -2,7 +2,7 @@
 #
 #  Subject:	RuScenery updater for X-plane
 #  Author:	(C)2011 Vladimir V. Panfilov v.v.panfilov@gmail.com
-#  Planform:	Development on Ubuntu Linux 10.04
+#  Platform:	Development on Ubuntu Linux 10.04
 #  		should work on others too
 #  Revision:	$Id$
 #
@@ -71,7 +71,7 @@ unless( $conf ){
   -f "./ruscupd.conf" and $conf = "./ruscupd.conf";
   unless ( $conf ){
     ($conf = $0)  =~ s/(.*)\/.*/$1\/ruscupd.conf/ if $conf =~ /^(\.\/)?$/; # locate our config
-    $defconf = "Config file missing. Creating ";
+    $defconf = "Config file missing. Creating";
   } 
 }else {
   $defconf = -f $conf? "Using" : "Will create";
@@ -110,8 +110,8 @@ $ua->agent("RuScUpd/$ruscrev Linux");
 $ua->env_proxy;
 
 # Load and parse commands from 'current version file'
-# download http://www.x-plane.su/ruscenery/ruscenery.ver
-my $updurl = "http://www.x-plane.su/ruscenery/";
+# download http://ruscenery.x-air.ru/ver/ruscenery.ver
+my $updurl = "http://ruscenery.x-air.ru/ver/";
 my $verfile = "ruscenery.ver";
 
 $f = download_file( $updurl, $verfile );
@@ -129,8 +129,8 @@ foreach $cmd (@commands){
    $botmsg = $1 if $cmd =~ /^;b (.*)/i ;
    $stsmsg = $1 if $cmd =~ /^;s (.*)/i ;
 }
-$updurl = "http://www.x-plane.su/ruscenery/" if $updurl =~ /^\s*$/;
-$dwnurl = "http://www.x-plane.su/ruscenery/update/" if $dwnurl =~ /^\s*$/;
+$updurl = "http://ruscenery.x-air.ru/ver/" if $updurl =~ /^\s*$/;
+$dwnurl = "http://ruscenery.x-air.ru/update/" if $dwnurl =~ /^\s*$/;
 
 if ($reset_config){
    create_config(\@conf);
